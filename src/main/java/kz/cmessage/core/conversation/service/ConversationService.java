@@ -6,10 +6,12 @@ import kz.cmessage.core.conversation.model.Conversation;
 import kz.cmessage.core.conversation.repository.ConversationRepository;
 import kz.cmessage.core.enumiration.ConversationType;
 import kz.cmessage.core.exception.IllegalAccessException;
-import kz.cmessage.core.exception.ObjectNotFoundException;
-import kz.cmessage.core.exception.ValidationException;
+import kz.cmessage.core.exception.MapperException;
+import kz.cmessage.core.exception.UnprocessableEntityException;
+import kz.cmessage.core.participant.service.ParticipantValidationService;
 import kz.cmessage.core.user.model.User;
 import kz.cmessage.core.util.SessionUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,8 +20,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static java.lang.String.format;
+import static kz.cmessage.core.common.constant.DefaultResponseMessage.ILLEGAL_ACCESS_ATTEMPT_DENIED;
+import static kz.cmessage.core.common.constant.DefaultResponseMessage.INVALID_PAYLOAD;
 
+@Slf4j
 @Service
 @Transactional
 public class ConversationService {
@@ -28,15 +32,17 @@ public class ConversationService {
     private SessionUtil sessionUtil;
     private ConversationValidationService conversationValidationService;
     private ConversationMapperService conversationMapperService;
+    private ParticipantValidationService participantValidationService;
 
     @Autowired
     public ConversationService(ConversationRepository conversationRepository, SessionUtil sessionUtil,
                                ConversationValidationService conversationValidationService,
-                               ConversationMapperService conversationMapperService) {
+                               ConversationMapperService conversationMapperService, ParticipantValidationService participantValidationService) {
         this.conversationRepository = conversationRepository;
         this.sessionUtil = sessionUtil;
         this.conversationValidationService = conversationValidationService;
         this.conversationMapperService = conversationMapperService;
+        this.participantValidationService = participantValidationService;
     }
 
     public List<ConversationDto> getUserConversations() {
@@ -47,24 +53,32 @@ public class ConversationService {
     }
 
     public Optional<ConversationDto> getUserConversationById(Long id) {
-        Optional<Conversation> conversationOptional = conversationRepository.findById(id);
-        conversationOptional.ifPresent(conversation -> {
-            try {
-                conversationValidationService.validateUserIsNotLeftParticipant(conversation);
-            } catch (ValidationException e) {
-                throw new IllegalAccessException("Illegal access attempt denied");
-            }
-        });
-        return Optional.ofNullable(conversationMapperService.toDto(conversationOptional.orElse(null)));
+        User sessionUser = sessionUtil.getSession().getUser();
+
+        if (!participantValidationService.isUserNotLeftParticipantByConversationIdAndUserId(id, sessionUser.getId())) {
+            log.warn("{}: User [id = {}] is not a participant of conversation [id = {}] but trying to get conversation",
+                    ILLEGAL_ACCESS_ATTEMPT_DENIED.getValue(), sessionUser.getId(), id);
+            throw new IllegalAccessException("Illegal access attempt denied");
+        }
+        return conversationRepository.findById(id)
+                .map(conversation -> conversationMapperService.toDto(conversation));
     }
 
     public ConversationDto create(CreateConversationRequestDto dto) {
+        User sessionUser = sessionUtil.getSession().getUser();
         Conversation conversation;
-        try {
-            conversationValidationService.validateConversationTypeByParticipantsCount(dto.getConversation());
-            conversationValidationService.validateUserIsCreator(dto.getConversation());
-        } catch (ValidationException e) {
-            throw new BadRequestException("Unacceptable payload");
+
+        if (!conversationValidationService
+                .isRightTypeSetByConversationDtoAndParticipantsIds(dto.getConversation(), dto.getParticipantUserIds())) {
+            log.error("Set incorrect conversation type [{}], when participants count is {} ",
+                    dto.getConversation().getType(), dto.getParticipantUserIds().size());
+            throw new UnprocessableEntityException(INVALID_PAYLOAD.getValue());
+        }
+
+        if (sessionUser.getId().equals(dto.getConversation().getCreatorId())) {
+            log.error("Dto creator [User id = {}] and session user [id = {}] not match",
+                    dto.getConversation().getCreatorId(), sessionUser.getId());
+            throw new UnprocessableEntityException(INVALID_PAYLOAD.getValue());
         }
 
         if (dto.getConversation().getType() == ConversationType.GROUP) {
@@ -81,18 +95,28 @@ public class ConversationService {
         return conversationMapperService.toDto(conversation);
     }
 
-    public ConversationDto update(Long id, ConversationDto dto){
-        if (!conversationRepository.existsById(id)){
-            throw new ObjectNotFoundException(format("Conversation [id = %s] does not exist", id));
+    public ConversationDto update(Conversation conversation, ConversationDto dto) {
+        User sessionUser = sessionUtil.getSession().getUser();
+        Conversation conversationFromDto;
+
+        if (!participantValidationService.isUserAdminByConversationIdAndUserId(conversation.getId(), sessionUser.getId())) {
+            log.warn("User [id = {}] is not an admin of conversation [id = {}] but trying to update it",
+                    sessionUser.getId(), conversation.getId());
+            throw new IllegalAccessException(ILLEGAL_ACCESS_ATTEMPT_DENIED.getValue());
         }
 
         try {
-            conversationValidationService.validateDtoByPersistentConversationId(dto, id);
-        } catch (ValidationException e) {
-            throw new BadRequestException("Payload and database data is not match");
+            conversationFromDto = conversationMapperService.toModel(dto);
+        } catch (MapperException e) {
+            log.error("Cannot map Conversation dto to Conversation entity: {}", e.getMessage());
+            throw new UnprocessableEntityException(INVALID_PAYLOAD.getValue(), e);
         }
 
-        Conversation conversation = conversationRepository.save(conversationMapperService.toModel(dto));
-        return conversationMapperService.toDto(conversation);
+        if (conversationValidationService.isSecuredFieldsChanged(conversation, conversationFromDto)) {
+            log.error("Secured fields [creatorId, type] of Conversation cannot be changed");
+            throw new UnprocessableEntityException(INVALID_PAYLOAD.getValue());
+        }
+
+        return conversationMapperService.toDto(conversationRepository.save(conversationFromDto));
     }
 }

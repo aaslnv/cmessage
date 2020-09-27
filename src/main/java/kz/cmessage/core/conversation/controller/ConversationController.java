@@ -3,6 +3,7 @@ package kz.cmessage.core.conversation.controller;
 import kz.cmessage.core.common.dto.ResponseDto;
 import kz.cmessage.core.conversation.dto.ConversationDto;
 import kz.cmessage.core.conversation.dto.CreateConversationRequestDto;
+import kz.cmessage.core.conversation.model.Conversation;
 import kz.cmessage.core.conversation.service.ConversationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
 import java.util.List;
 
 @RestController
@@ -48,7 +50,10 @@ public class ConversationController {
 
     @PutMapping
     @RequestMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody @Valid ConversationDto dto) {
-        return ResponseEntity.ok(conversationService.update(id, dto));
+    public ResponseEntity<?> update(@PathVariable(value = "id") @Valid @NotNull Conversation conversation,
+                                    @RequestBody @Valid ConversationDto dto) {
+        ConversationDto responseData = conversationService.update(conversation, dto);
+        ResponseDto<?> responseDto = new ResponseDto<>(responseData);
+        return ResponseEntity.status(responseDto.getStatus()).body(responseDto);
     }
 }

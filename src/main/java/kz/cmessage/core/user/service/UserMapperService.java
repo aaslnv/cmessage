@@ -86,7 +86,7 @@ public class UserMapperService {
 
     private void mapSpecificFields(UserDto source, User destination) {
         User user = userRepository.findById(source.getId())
-                .orElseThrow(() -> new ObjectNotFoundException(format("User with id = %s not found", source.getId())));
+                .orElseThrow(() -> new ObjectNotFoundException(format("User [id = %s] does not exist", source.getId())));
         destination.setPassword(user.getPassword());
         destination.setCreatedDate(user.getCreatedDate());
         destination.setOnline(user.isOnline());
