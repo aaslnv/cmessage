@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.util.List;
 
 @RestController
 @RequestMapping("/conversations")
@@ -23,21 +24,26 @@ public class ConversationController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getUserConversations() {
-        return ResponseEntity.ok(conversationService.getUserConversations());
+    public ResponseEntity<ResponseDto<?>> getAll() {
+        List<ConversationDto> responseData = conversationService.getUserConversations();
+        ResponseDto<?> responseDto = new ResponseDto<>(responseData);
+        return ResponseEntity.status(responseDto.getStatus()).body(responseDto);
     }
 
     @GetMapping
     @RequestMapping("/{id}")
-    public ResponseEntity<?> getById(@PathVariable Long id) {
-        return conversationService.getUserConversationById(id)
-                .map((conversation -> ResponseEntity.ok().body(conversation)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<ResponseDto<?>> getById(@PathVariable Long id) {
+        ResponseDto<?> responseDto = conversationService.getUserConversationById(id)
+                .map(ResponseDto::new)
+                .orElse(new ResponseDto<>(true, HttpStatus.NOT_FOUND));
+        return ResponseEntity.status(responseDto.getStatus()).body(responseDto);
     }
 
     @PostMapping
     public ResponseEntity<?> create(@RequestBody @Valid CreateConversationRequestDto dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(conversationService.create(dto));
+        ConversationDto responseData = conversationService.create(dto);
+        ResponseDto<?> responseDto = new ResponseDto<>(responseData);
+        return ResponseEntity.status(responseDto.getStatus()).body(responseDto);
     }
 
     @PutMapping

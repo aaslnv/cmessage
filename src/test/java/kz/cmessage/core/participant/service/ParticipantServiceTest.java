@@ -41,7 +41,7 @@ public class ParticipantServiceTest {
         List<Participant> participants = prepareParticipants();
 
         when(sessionUtil.getSession().getUser()).thenReturn(sessionUser);
-        when(participantValidationService.validateUserIsParticipantByConversationIdAndUserId(conversation.getId(), sessionUser.getId()))
+        when(participantValidationService.isUserNotLeftParticipantByConversationIdAndUserId(conversation.getId(), sessionUser.getId()))
                 .thenReturn(true);
         when(participantRepository.findAllByLeftIsFalseAndPrimaryKeyConversationId(conversation.getId()))
                 .thenReturn(participants);
@@ -59,7 +59,7 @@ public class ParticipantServiceTest {
         Conversation conversation = prepareConversation();
 
         when(sessionUtil.getSession().getUser()).thenReturn(sessionUser);
-        when(participantValidationService.validateUserIsParticipantByConversationIdAndUserId(conversation.getId(), sessionUser.getId()))
+        when(participantValidationService.isUserNotLeftParticipantByConversationIdAndUserId(conversation.getId(), sessionUser.getId()))
                 .thenReturn(false);
 
         participantService.getAllNotLeftByConversation(conversation);

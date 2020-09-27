@@ -36,8 +36,9 @@ public class ParticipantController {
     @RequestMapping("/{userId}")
     public ResponseEntity<ResponseDto<?>> getByUser(@PathVariable(value = "conversationId") @Valid @NotNull Conversation conversation,
                                                     @PathVariable(value = "userId") @Valid @NotNull User user) {
-        ParticipantDto responseData = participantService.getByConversationAndUser(conversation, user);
-        ResponseDto<?> responseDto = new ResponseDto<>(responseData);
+        ResponseDto<?> responseDto = participantService.getByConversationAndUser(conversation, user)
+                .map(ResponseDto::new)
+                .orElse(new ResponseDto<>(true, HttpStatus.NOT_FOUND));
         return ResponseEntity.status(responseDto.getStatus()).body(responseDto);
     }
 
@@ -69,10 +70,19 @@ public class ParticipantController {
     }
 
     @PatchMapping
-    @RequestMapping("/{userId}")
+    @RequestMapping("/{userId}/setAdmin")
     public ResponseEntity<ResponseDto<?>> setAdmin(@PathVariable(value = "conversationId") @Valid @NotNull Conversation conversation,
                                                    @PathVariable(value = "userId") @Valid @NotNull User user) {
-        participantService.setParticipantAdminByConversationAndUser(conversation, user);
+        participantService.switchIsAdmin(conversation, user, true);
+        ResponseDto<?> responseDto = new ResponseDto<>(true, HttpStatus.OK);
+        return ResponseEntity.status(responseDto.getStatus()).body(responseDto);
+    }
+
+    @PatchMapping
+    @RequestMapping("/{userId}/setNotAdmin")
+    public ResponseEntity<ResponseDto<?>> setNotAdmin(@PathVariable(value = "conversationId") @Valid @NotNull Conversation conversation,
+                                                      @PathVariable(value = "userId") @Valid @NotNull User user) {
+        participantService.switchIsAdmin(conversation, user, false);
         ResponseDto<?> responseDto = new ResponseDto<>(true, HttpStatus.OK);
         return ResponseEntity.status(responseDto.getStatus()).body(responseDto);
     }

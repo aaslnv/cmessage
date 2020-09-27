@@ -6,6 +6,7 @@ import lombok.Data;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import java.time.LocalDateTime;
 
 @Data
 public class ParticipantDto {
@@ -16,4 +17,5 @@ public class ParticipantDto {
     private UserDto user;
     private ParticipantType type;
     private boolean isLeft;
+    private LocalDateTime createdDate;
 }

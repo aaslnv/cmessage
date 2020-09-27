@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
+import java.time.LocalDateTime;
 
 @Data
 @Entity
@@ -23,4 +24,7 @@ public class Participant {
 
     @Column(name = "is_left", nullable = false)
     private boolean isLeft;
+
+    @Column(name = "created_date", nullable = false)
+    private LocalDateTime createdDate;
 }

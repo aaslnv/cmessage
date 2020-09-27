@@ -15,11 +15,15 @@ public class ParticipantValidationService {
         this.participantRepository = participantRepository;
     }
 
-    public boolean validateUserIsParticipantByConversationIdAndUserId(Long conversationId, Long userId) {
+    public boolean isUserNotLeftParticipantByConversationIdAndUserId(Long conversationId, Long userId) {
         return participantRepository.existsByLeftIsFalseAndPrimaryKeyConversationIdAndPrimaryKeyUserId(conversationId, userId);
     }
 
-    public boolean validateUserIsAdminByConversationIdAndUserId(Long conversationId, Long userId) {
+    public boolean isUserParticipantByConversationIdAndUserId(Long conversationId, Long userId) {
+        return participantRepository.existsByPrimaryKeyConversationIdAndPrimaryKeyUserId(conversationId, userId);
+    }
+
+    public boolean isUserAdminByConversationIdAndUserId(Long conversationId, Long userId) {
         return participantRepository.existsByLeftIsFalseAndPrimaryKeyConversationIdAndPrimaryKeyUserIdAndType(
                 conversationId, userId, ParticipantType.ADMIN);
     }
