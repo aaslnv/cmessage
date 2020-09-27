@@ -1,8 +1,8 @@
 package kz.cmessage.core.util;
 
-        import kz.cmessage.core.session.model.Session;
-        import org.springframework.beans.factory.annotation.Autowired;
-        import org.springframework.stereotype.Component;
+import kz.cmessage.core.session.model.Session;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 @Component
 public class SessionUtil {
@@ -15,7 +15,7 @@ public class SessionUtil {
     }
 
 
-    public Session getSession(){
+    public Session getSession() {
         return new Session();
     }
 }

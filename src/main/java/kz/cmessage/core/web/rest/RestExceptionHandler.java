@@ -1,9 +1,9 @@
-package kz.cmessage.core.rest;
+package kz.cmessage.core.web.rest;
 
 import kz.cmessage.core.common.dto.ResponseDto;
-import kz.cmessage.core.exception.BadRequestException;
 import kz.cmessage.core.exception.IllegalAccessException;
 import kz.cmessage.core.exception.ObjectNotFoundException;
+import kz.cmessage.core.exception.UnprocessableEntityException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -28,9 +28,9 @@ public class RestExceptionHandler {
     }
 
     @ResponseBody
-    @ExceptionHandler(IllegalAccessException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ResponseDto<?> handleBadRequestException(BadRequestException ex) {
-        return new ResponseDto<>(false, ex.getMessage(), HttpStatus.BAD_REQUEST);
+    @ExceptionHandler(UnprocessableEntityException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ResponseDto<?> handleUnprocessableEntityException(UnprocessableEntityException ex) {
+        return new ResponseDto<>(false, ex.getMessage(), HttpStatus.UNPROCESSABLE_ENTITY);
     }
 }

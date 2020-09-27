@@ -2,17 +2,16 @@ package kz.cmessage.core.participant.service;
 
 import kz.cmessage.core.conversation.model.Conversation;
 import kz.cmessage.core.enumiration.ParticipantType;
-import kz.cmessage.core.exception.BadRequestException;
 import kz.cmessage.core.exception.IllegalAccessException;
 import kz.cmessage.core.exception.MapperException;
 import kz.cmessage.core.exception.ObjectNotFoundException;
+import kz.cmessage.core.exception.UnprocessableEntityException;
 import kz.cmessage.core.participant.dto.ParticipantDto;
 import kz.cmessage.core.participant.model.Participant;
 import kz.cmessage.core.participant.model.ParticipantPk;
 import kz.cmessage.core.participant.repository.ParticipantRepository;
 import kz.cmessage.core.user.model.User;
 import kz.cmessage.core.user.repository.UserRepository;
-import kz.cmessage.core.user.service.UserMapperService;
 import kz.cmessage.core.util.SessionUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,25 +36,25 @@ public class ParticipantService {
     private ParticipantValidationService participantValidationService;
     private ParticipantMapperService participantMapperService;
     private UserRepository userRepository;
-    private UserMapperService userMapperService;
 
     public ParticipantService(ParticipantRepository participantRepository, SessionUtil sessionUtil,
                               ParticipantValidationService participantValidationService,
                               ParticipantMapperService participantMapperService,
-                              UserRepository userRepository, UserMapperService userMapperService) {
+                              UserRepository userRepository) {
         this.participantRepository = participantRepository;
         this.sessionUtil = sessionUtil;
         this.participantValidationService = participantValidationService;
         this.participantMapperService = participantMapperService;
         this.userRepository = userRepository;
-        this.userMapperService = userMapperService;
     }
 
     public List<ParticipantDto> getAllNotLeftByConversation(Conversation conversation) {
-        User user = sessionUtil.getSession().getUser();
+        User sessionUser = sessionUtil.getSession().getUser();
 
         if (!participantValidationService
-                .validateUserIsParticipantByConversationIdAndUserId(conversation.getId(), user.getId())) {
+                .validateUserIsParticipantByConversationIdAndUserId(conversation.getId(), sessionUser.getId())) {
+            log.warn("{}: User [id = {}] is not a participant of conversation [id = {}] but trying to get participants",
+                    ILLEGAL_ACCESS_ATTEMPT_DENIED.getValue(), sessionUser.getId(), conversation.getId());
             throw new IllegalAccessException(ILLEGAL_ACCESS_ATTEMPT_DENIED.getValue());
         }
 
@@ -69,6 +68,8 @@ public class ParticipantService {
 
         if (!participantValidationService
                 .validateUserIsParticipantByConversationIdAndUserId(conversation.getId(), sessionUser.getId())) {
+            log.warn("{}: User [id = {}] is not a participant of conversation [id = {}] but trying to get participant",
+                    ILLEGAL_ACCESS_ATTEMPT_DENIED.getValue(), sessionUser.getId(), conversation.getId());
             throw new IllegalAccessException(ILLEGAL_ACCESS_ATTEMPT_DENIED.getValue());
         }
 
@@ -78,9 +79,11 @@ public class ParticipantService {
     }
 
     public List<ParticipantDto> addParticipants(Conversation conversation, Set<Long> userIds) throws IllegalAccessException {
-        User user = sessionUtil.getSession().getUser();
+        User sessionUser = sessionUtil.getSession().getUser();
 
-        if (!participantValidationService.validateUserIsAdminByConversationIdAndUserId(conversation.getId(), user.getId())) {
+        if (!participantValidationService.validateUserIsAdminByConversationIdAndUserId(conversation.getId(), sessionUser.getId())) {
+            log.warn("{}: User [id = {}] is not an admin of conversation [id = {}] but trying to add participants",
+                    ILLEGAL_ACCESS_ATTEMPT_DENIED.getValue(), sessionUser.getId(), conversation.getId());
             throw new IllegalAccessException(ILLEGAL_ACCESS_ATTEMPT_DENIED.getValue());
         }
 
@@ -104,7 +107,9 @@ public class ParticipantService {
 
         if (!participantRepository
                 .existsByLeftIsFalseAndPrimaryKeyConversationIdAndPrimaryKeyUserId(conversation.getId(), user.getId())) {
-            throw new BadRequestException(format("Participant [Conversation ID = %s, User ID = %s] does not exist",
+            log.warn("{}: User [id = {}] is not an admin of conversation [id = {}] but trying to add participants",
+                    ILLEGAL_ACCESS_ATTEMPT_DENIED.getValue(), user.getId(), conversation.getId());
+            throw new IllegalAccessException(format("Participant [Conversation ID = %s, User ID = %s] does not exist",
                     conversation.getId(), user.getId()));
         }
 
@@ -112,18 +117,17 @@ public class ParticipantService {
             participant = participantMapperService.toModel(dto);
             participantPk = participant.getPrimaryKey();
         } catch (MapperException e) {
-            throw new BadRequestException(INVALID_PAYLOAD.getValue(), e);
+            log.error("Cannot map Participant dto to Participant entity: {}", e.getMessage());
+            throw new UnprocessableEntityException(INVALID_PAYLOAD.getValue(), e);
         }
 
         if (isNull(participantPk.getUser()) || isNull(participantPk.getConversation()) ||
                 !participantPk.getUser().getId().equals(user.getId()) ||
                 !participantPk.getConversation().getId().equals(conversation.getId())) {
-            throw new BadRequestException(INVALID_PAYLOAD.getValue());
-        }
-
-        if (isNull(dto.getConversationId()) || !dto.getConversationId().equals(conversation.getId()) ||
-                !dto.getUser().equals(userMapperService.toDto(user))) {
-            throw new BadRequestException(INVALID_PAYLOAD.getValue());
+            log.error("Request path variable [Conversation id = {}, User id ={}] and payload " +
+                            "[Conversation id = {}, User id ={}] is not match", conversation.getId(), user.getId(),
+                    dto.getConversationId(), dto.getUser().getId());
+            throw new UnprocessableEntityException(INVALID_PAYLOAD.getValue());
         }
 
         return participantMapperService.toDto(participantRepository.save(participant));
@@ -134,6 +138,8 @@ public class ParticipantService {
 
         if (!user.getId().equals(sessionUser.getId()) && !participantValidationService
                 .validateUserIsAdminByConversationIdAndUserId(conversation.getId(), sessionUser.getId())) {
+            log.warn("{}: User [id = {}] is not an admin of conversation [id = {}] but trying to kick out User [id = {}]",
+                    ILLEGAL_ACCESS_ATTEMPT_DENIED.getValue(), sessionUser.getId(), conversation.getId(), user.getId());
             throw new IllegalAccessException(ILLEGAL_ACCESS_ATTEMPT_DENIED.getValue());
         }
 
@@ -144,6 +150,8 @@ public class ParticipantService {
         User sessionUser = sessionUtil.getSession().getUser();
 
         if (!participantValidationService.validateUserIsAdminByConversationIdAndUserId(conversation.getId(), sessionUser.getId())) {
+            log.warn("{}: User [id = {}] is not an admin of conversation [id = {}] but trying to assign admin User [id = {}]",
+                    ILLEGAL_ACCESS_ATTEMPT_DENIED.getValue(), sessionUser.getId(), conversation.getId(), user.getId());
             throw new IllegalAccessException(ILLEGAL_ACCESS_ATTEMPT_DENIED.getValue());
         }
 

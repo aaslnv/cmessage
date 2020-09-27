@@ -1,6 +1,5 @@
 package kz.cmessage.core.user.service;
 
-import kz.cmessage.core.exception.BadRequestException;
 import kz.cmessage.core.exception.IllegalAccessException;
 import kz.cmessage.core.exception.ObjectNotFoundException;
 import kz.cmessage.core.exception.ValidationException;

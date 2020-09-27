@@ -5,7 +5,6 @@ import kz.cmessage.core.conversation.dto.CreateConversationRequestDto;
 import kz.cmessage.core.conversation.model.Conversation;
 import kz.cmessage.core.conversation.repository.ConversationRepository;
 import kz.cmessage.core.enumiration.ConversationType;
-import kz.cmessage.core.exception.BadRequestException;
 import kz.cmessage.core.exception.IllegalAccessException;
 import kz.cmessage.core.exception.ObjectNotFoundException;
 import kz.cmessage.core.exception.ValidationException;
