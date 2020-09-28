@@ -42,7 +42,7 @@ public class ConversationController {
     }
 
     @PostMapping
-    public ResponseEntity<?> create(@RequestBody @Valid CreateConversationRequestDto dto) {
+    public ResponseEntity<ResponseDto<?>> create(@RequestBody @Valid CreateConversationRequestDto dto) {
         ConversationDto responseData = conversationService.create(dto);
         ResponseDto<?> responseDto = new ResponseDto<>(responseData);
         return ResponseEntity.status(responseDto.getStatus()).body(responseDto);
@@ -50,8 +50,8 @@ public class ConversationController {
 
     @PutMapping
     @RequestMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable(value = "id") @Valid @NotNull Conversation conversation,
-                                    @RequestBody @Valid ConversationDto dto) {
+    public ResponseEntity<ResponseDto<?>> update(@PathVariable(value = "id") @Valid @NotNull Conversation conversation,
+                                                 @RequestBody @Valid ConversationDto dto) {
         ConversationDto responseData = conversationService.update(conversation, dto);
         ResponseDto<?> responseDto = new ResponseDto<>(responseData);
         return ResponseEntity.status(responseDto.getStatus()).body(responseDto);

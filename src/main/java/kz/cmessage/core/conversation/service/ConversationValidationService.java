@@ -2,7 +2,6 @@ package kz.cmessage.core.conversation.service;
 
 import kz.cmessage.core.conversation.dto.ConversationDto;
 import kz.cmessage.core.conversation.model.Conversation;
-import kz.cmessage.core.conversation.repository.ConversationRepository;
 import kz.cmessage.core.enumiration.ConversationType;
 import org.springframework.stereotype.Service;
 

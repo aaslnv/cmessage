@@ -67,22 +67,30 @@ public class ConversationService {
     public ConversationDto create(CreateConversationRequestDto dto) {
         User sessionUser = sessionUtil.getSession().getUser();
         Conversation conversation;
+        Conversation conversationFromDto;
 
         if (!conversationValidationService
                 .isRightTypeSetByConversationDtoAndParticipantsIds(dto.getConversation(), dto.getParticipantUserIds())) {
-            log.error("Set incorrect conversation type [{}], when participants count is {} ",
+            log.warn("Set incorrect conversation type [{}], when participants count is {} ",
                     dto.getConversation().getType(), dto.getParticipantUserIds().size());
             throw new UnprocessableEntityException(INVALID_PAYLOAD.getValue());
         }
 
         if (sessionUser.getId().equals(dto.getConversation().getCreatorId())) {
-            log.error("Dto creator [User id = {}] and session user [id = {}] not match",
+            log.warn("Dto creator [User id = {}] and session user [id = {}] not match",
                     dto.getConversation().getCreatorId(), sessionUser.getId());
             throw new UnprocessableEntityException(INVALID_PAYLOAD.getValue());
         }
 
+        try {
+            conversationFromDto = conversationMapperService.toModel(dto.getConversation());
+        } catch (MapperException e) {
+            log.error("Cannot map Conversation dto to Conversation entity: {}", e.getMessage());
+            throw new UnprocessableEntityException(INVALID_PAYLOAD.getValue(), e);
+        }
+
         if (dto.getConversation().getType() == ConversationType.GROUP) {
-            conversation = conversationRepository.save(conversationMapperService.toModel(dto.getConversation()));
+            conversation = conversationRepository.save(conversationFromDto);
         } else {
             Long firstUserId = dto.getConversation().getCreatorId();
             Long secondUserId = dto.getParticipantUserIds().stream()
@@ -90,7 +98,7 @@ public class ConversationService {
                     .findFirst()
                     .orElse(0L);
             conversation = conversationRepository.findPrivateByUserIds(firstUserId, secondUserId)
-                    .orElse(conversationRepository.save(conversationMapperService.toModel(dto.getConversation())));
+                    .orElse(conversationRepository.save(conversationFromDto));
         }
         return conversationMapperService.toDto(conversation);
     }
